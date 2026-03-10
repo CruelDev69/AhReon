@@ -40,8 +40,7 @@ py main.py
 # Features
 
 - [x] Search games from multiple repack sources
-- [x] FitGirl Repacks support
-- [x] DODI Repacks support
+- [x] FitGirl Repacks, GOGUnlocked, RG Mechanics, Crotorrent support
 - [x] Fast scraping system
 - [x] Clean and simple GUI
 - [x] Game details preview
