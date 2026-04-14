@@ -1,11 +1,12 @@
 import threading
 import io
-import hashlib
-from typing import Callable, Dict, Optional
-from PIL import Image, ImageTk, ImageDraw, ImageFilter
+from typing import Callable, Dict, Tuple
+from PIL import Image, ImageDraw
+import customtkinter as ctk
 import requests
 
-_cache: Dict[str, ImageTk.PhotoImage] = {}
+# Cache key: "url_WxH" -> CTkImage
+_cache: Dict[str, ctk.CTkImage] = {}
 _lock = threading.Lock()
 
 HEADERS = {
@@ -39,13 +40,24 @@ def _rounded_image(img: Image.Image, radius: int = 10) -> Image.Image:
     return bg.convert("RGB")
 
 
+def _to_ctk_image(pil_img: Image.Image, width: int, height: int) -> ctk.CTkImage:
+    """PIL Image → CTkImage (HighDPI safe, no warning)."""
+    return ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(width, height))
+
+
 def load_image_async(
     url: str,
     width: int,
     height: int,
-    callback: Callable[[ImageTk.PhotoImage], None],
+    callback: Callable[[ctk.CTkImage], None],
     rounded: bool = True,
 ) -> None:
+    """
+    Async mein image download karo aur callback mein CTkImage do.
+    Callback CTk main thread se call hogi (after_idle via widget) —
+    lekin yahan hum sirf callback() call karte hain; caller ko
+    widget.after(0, lambda: label.configure(image=img)) use karna chahiye.
+    """
     cache_key = f"{url}_{width}x{height}"
     with _lock:
         if cache_key in _cache:
@@ -57,31 +69,27 @@ def load_image_async(
             if url and url.startswith("http"):
                 resp = requests.get(url, headers=HEADERS, timeout=8)
                 resp.raise_for_status()
-                img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+                pil_img = Image.open(io.BytesIO(resp.content)).convert("RGB")
             else:
-                img = _make_placeholder(width, height, "NO IMG")
+                pil_img = _make_placeholder(width, height, "NO IMG")
 
-            img = img.resize((width, height), Image.LANCZOS)
+            pil_img = pil_img.resize((width, height), Image.LANCZOS)
             if rounded:
-                img = _rounded_image(img, radius=8)
+                pil_img = _rounded_image(pil_img, radius=8)
 
-            photo = ImageTk.PhotoImage(img)
-            with _lock:
-                _cache[cache_key] = photo
-            callback(photo)
         except Exception:
-            img = _make_placeholder(width, height, "NO IMG")
+            pil_img = _make_placeholder(width, height, "NO IMG")
             if rounded:
-                img = _rounded_image(img, radius=8)
-            photo = ImageTk.PhotoImage(img)
-            with _lock:
-                _cache[cache_key] = photo
-            callback(photo)
+                pil_img = _rounded_image(pil_img, radius=8)
 
-    t = threading.Thread(target=worker, daemon=True)
-    t.start()
+        ctk_img = _to_ctk_image(pil_img, width, height)
+        with _lock:
+            _cache[cache_key] = ctk_img
+        callback(ctk_img)
+
+    threading.Thread(target=worker, daemon=True).start()
 
 
-def clear_cache():
+def clear_cache() -> None:
     with _lock:
         _cache.clear()
