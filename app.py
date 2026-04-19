@@ -12,7 +12,6 @@ import os
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
-# Ek baar mein kitne cards render karne hain (baaki lazy load)
 BATCH_SIZE = 8
 
 
@@ -32,8 +31,8 @@ class GameFinderApp(ctk.CTk):
 
         self._results: List[GameResult] = []
         self._selected: Optional[GameResult] = None
-        self._render_index: int = 0          # lazy batch rendering ke liye
-        self._search_id: int = 0             # stale search cancel karne ke liye
+        self._render_index: int = 0         
+        self._search_id: int = 0          
 
         self._build_ui()
 
@@ -126,8 +125,7 @@ class GameFinderApp(ctk.CTk):
         self.status.set(f"🔍  Searching '{query}' in {', '.join(sources)}…")
 
         def worker():
-            results = search_all(query, sources)   # ← blocking call, background thread pe
-            # Agar user ne naya search chala diya to ignore
+            results = search_all(query, sources)  
             if my_id != self._search_id:
                 return
             self.after(0, lambda: self._on_results(results, query))
@@ -184,10 +182,6 @@ class GameFinderApp(ctk.CTk):
         self._render_batch()
 
     def _render_batch(self):
-        """
-        Ek BATCH_SIZE ke cards render karo, phir `after()` se
-        next batch schedule karo — UI kabhi freeze nahi hogi.
-        """
         end = min(self._render_index + BATCH_SIZE, len(self._results))
         for i in range(self._render_index, end):
             game = self._results[i]
@@ -206,7 +200,6 @@ class GameFinderApp(ctk.CTk):
 
         self._render_index = end
 
-        # Aur baaki hain toh schedule next batch
         if self._render_index < len(self._results):
             self.after(30, self._render_batch)
 
@@ -269,7 +262,6 @@ class GameFinderApp(ctk.CTk):
     # ─────────────────────────────────────────
 
     def _clear_results_frame(self):
-        """Saare children ek saath destroy karo — reflow sirf ek baar."""
         for w in self.results_frame.winfo_children():
             w.destroy()
 
