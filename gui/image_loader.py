@@ -52,12 +52,6 @@ def load_image_async(
     callback: Callable[[ctk.CTkImage], None],
     rounded: bool = True,
 ) -> None:
-    """
-    Async mein image download karo aur callback mein CTkImage do.
-    Callback CTk main thread se call hogi (after_idle via widget) —
-    lekin yahan hum sirf callback() call karte hain; caller ko
-    widget.after(0, lambda: label.configure(image=img)) use karna chahiye.
-    """
     cache_key = f"{url}_{width}x{height}"
     with _lock:
         if cache_key in _cache:
